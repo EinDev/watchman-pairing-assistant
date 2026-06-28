@@ -5,7 +5,7 @@ GUI for pairing SteamVR Tracking devices using lighthouse_console
 
 ## Manual (any platform)
 
-1. clone the repo using `git clone https://github.com/EinDev/WatchmanPairingAssistant.git`
+1. clone the repo using `git clone https://github.com/TayouVR/WatchmanPairingAssistant.git`
 2. To install dependencies run `pip3 install -r requirements.txt`
 3. run `python3 main.py`
 
@@ -13,7 +13,7 @@ GUI for pairing SteamVR Tracking devices using lighthouse_console
 
 ### NixOS
 ```nix
-nix run github:EinDev/watchman-pairing-assistant
+nix run github:TayouVR/watchman-pairing-assistant
 ```
 
 ### Other
