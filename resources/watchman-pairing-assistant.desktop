@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Watchman Pairing Assistant
+Comment=Pair SteamVR Tracking devices using lighthouse_console
+Exec=watchman-pairing-assistant
+Terminal=false
+Categories=Utility;
+Icon=watchman-pairing-assistant

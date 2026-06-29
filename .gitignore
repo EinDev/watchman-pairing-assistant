@@ -4,3 +4,5 @@
 /main.spec
 /build
 /dist
+/result
+__pycache__

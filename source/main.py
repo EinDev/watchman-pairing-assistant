@@ -7,7 +7,20 @@ import json
 import os
 import sys
 
-import usb_util_windows
+import usb_util
+
+VERSION = "2.2.1"
+
+def _user_config_dir(app_name: str) -> str:
+    # Cross-platform user config dir
+    # Linux/macOS: $XDG_CONFIG_HOME/app_name or ~/.config/app_name
+    # Windows: %APPDATA%\AppName
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA", os.path.join(os.path.expanduser("~"), "AppData", "Roaming"))
+        return os.path.join(base, app_name)
+    else:
+        base = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser("~"), ".config"))
+        return os.path.join(base, app_name)
 
 class SidebarFrame(ctk.CTkFrame):
     def __init__(self, master, app_instance, **kwargs):#Widget Placement
@@ -159,7 +172,7 @@ class App(ctk.CTk):
         self.textbox_log.grid(row=2, column=1, padx=(20, 20), pady=(10, 20), sticky="nsew")
 
         #reset
-        self.insert_log("Welcome to watchman_pairing_assistant ! (v2.0)")
+        self.insert_log(f"Welcome to watchman_pairing_assistant ! (v{VERSION})")
         self.sidebar_frame.sidebar_button_reload_callback()
         
     def insert_log(self,log):#Functio to display logs in console and text box
@@ -218,7 +231,7 @@ class App(ctk.CTk):
     
     def get_device_name(self, serial_number):#Function to determine device name from serial
         try:
-            hmds = list(usb_util_windows.find_hmd())
+            hmds = list(usb_util.find_hmd())
             for hmd in hmds:
                 dongle_serials = hmd.get_dongle_serials()
                 if serial_number in dongle_serials:
@@ -245,16 +258,26 @@ class App(ctk.CTk):
         return exe_path
 
     def load_config(self):  # Generating and getting json
-        config_path = os.path.join(os.path.dirname(sys.argv[0]), "resources", "config.json")
-        resources_dir = os.path.join(os.path.dirname(sys.argv[0]), "resources")
+        app_name = "watchman-pairing-assistant"
+        config_dir = _user_config_dir(app_name)
+        os.makedirs(config_dir, exist_ok=True)
+        config_path = os.path.join(config_dir, "config.json")
+
+        # debug for current user dir
+        print(os.path.expanduser('~'))
+        partial_lh_console_bin_path = os.path.join("steamapps", "common", "SteamVR", "tools", "lighthouse", "bin")
+
+        if sys.platform == 'win32':
+            default_lh_console_path = os.path.join(
+                "C:", "Program Files (x86)", "Steam", partial_lh_console_bin_path, "win64", "lighthouse_console.exe")
+        else:
+            default_lh_console_path = os.path.join(
+                os.path.expanduser('~'), ".steam", "steam", partial_lh_console_bin_path, "linux64", "lighthouse_console")
 
         default_config = {
             "theme": "Dark",
-            "lighthouse_console_path": r"C:\Program Files (x86)\Steam\steamapps\common\SteamVR\tools\lighthouse\bin\win64\lighthouse_console.exe"
+            "lighthouse_console_path": default_lh_console_path
         }
-
-        if not os.path.exists(resources_dir):
-            os.makedirs(resources_dir, exist_ok=True)
 
         if not os.path.exists(config_path):
             with open(config_path, "w") as config_file:
@@ -267,5 +290,9 @@ class App(ctk.CTk):
         return config
 
 if __name__ == "__main__":
-    app = App() 
+    app = App()
+    app.mainloop()
+
+def main():
+    app = App()
     app.mainloop()

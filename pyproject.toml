@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "watchman-pairing-assistant"
+version = "2.2.1"
+description = "GUI for pairing SteamVR Tracking devices using lighthouse_console"
+readme = "README.md"
+dependencies = [
+  "customtkinter",
+  "pyusb",
+  "libusb-package",
+]
+license = "MIT"
+
+[project.scripts]
+watchman-pairing-assistant = "main:main"
+
+[tool.setuptools]
+package-dir = { "" = "source" }
+py-modules = ["main", "usb_util"]
+
+[tool.setuptools.data-files]
+"share/applications" = ["resources/watchman-pairing-assistant.desktop"]
+"share/icons/hicolor/256x256/apps" = ["resources/watchman-pairing-assistant.png"]
