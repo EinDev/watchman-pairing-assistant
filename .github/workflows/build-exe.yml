@@ -64,4 +64,6 @@ jobs:
         with:
           tag: ${{ needs.build-exe.outputs.new_tag }}
           allowUpdates: true
-          artifacts: dist/*.AppImage
+          artifacts: |
+                     source/dist/*.AppImage
+                     source/dist/*.zsync
