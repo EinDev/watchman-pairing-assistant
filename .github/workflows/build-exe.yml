@@ -50,8 +50,7 @@ jobs:
           python-version: '3.10'
       - name: Sanitize version
         run: |
-             RAW="${{ needs.tag.outputs.new_tag }}"
-             CLEAN=$(echo "$RAW" | sed -E 's/^v//; s/[^0-9.-]//g')
+             CLEAN=$(echo "$RELEASEVERSION" | sed -E 's/^v//; s/[^0-9.-]//g')
              echo "RELEASEVERSION=$CLEAN" >> "$GITHUB_ENV"
       - name: Install Task
         uses: arduino/setup-task@v2
