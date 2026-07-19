@@ -17,8 +17,7 @@ tasks:
     cmds:
       - pip install cx_freeze
       - pip install -r requirements.txt
-      - cd source
-      - GITHUB_REPOSITORY_CLEAN=${GITHUB_REPOSITORY////|} RELEASEVERSION="${GITHUB_REF#refs/tags/}" python setup.py bdist_appimage
+      - cd source; GITHUB_REPOSITORY_CLEAN=${GITHUB_REPOSITORY////|} RELEASEVERSION="${GITHUB_REF#refs/tags/}" python setup.py bdist_appimage
   clean:
     platforms:
       - windows
