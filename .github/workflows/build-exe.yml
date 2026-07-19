@@ -57,7 +57,7 @@ jobs:
       - run: task dist-lin
       - uses: actions/upload-artifact@v4
         with:
-          path: dist/*.AppImage
+          path: source/dist/*.AppImage
           name: executable
       - name: Attach AppImage to existing release
         uses: ncipollo/release-action@v1
