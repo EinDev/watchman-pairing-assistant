@@ -262,7 +262,7 @@ class App(ctk.CTk):
         config = self.load_config()
         exe_path = config.get("lighthouse_console_path")
         return exe_path
- 
+
     def load_config(self):  # Generating and getting json
         if self._config is not None:
             return self._config

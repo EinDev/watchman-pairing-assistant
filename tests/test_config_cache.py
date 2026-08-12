@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest import mock
 
 
-REPO_ROOT = Path("/home/runner/work/watchman-pairing-assistant/watchman-pairing-assistant")
+REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIR = REPO_ROOT / "source"
 
 
