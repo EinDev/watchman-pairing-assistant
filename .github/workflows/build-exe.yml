@@ -6,11 +6,16 @@ on:
       - main
       - linux
   pull_request:
+  schedule:
+    # Run daily at 02:00 UTC to create a release if there are new commits since the last tag
+    - cron: '0 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  # Validate builds on pull requests — no release artifacts produced
   validate:
     if: github.event_name == 'pull_request'
     runs-on: windows-latest
@@ -23,13 +28,48 @@ jobs:
         uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2
       - run: task dist-win
 
-  build-exe:
-    if: github.event_name == 'push'
-    runs-on: [ windows-latest ]
+  # Check whether a new release should be created.
+  # A release is skipped if the HEAD commit on main is already tagged.
+  check-release:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
     outputs:
-      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      should_release: ${{ steps.check.outputs.should_release }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Check for new commits since last tag
+        id: check
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found — will create initial release"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          else
+            COMMITS_SINCE=$(git rev-list "${LATEST_TAG}..HEAD" --count)
+            if [ "$COMMITS_SINCE" -gt 0 ]; then
+              echo "Found $COMMITS_SINCE new commit(s) since $LATEST_TAG — will release"
+              echo "should_release=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "No new commits since $LATEST_TAG — skipping release"
+              echo "should_release=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+  # Build Windows executable and create the versioned tag + GitHub release.
+  # Runs at most once per day via the scheduled trigger.
+  build-exe:
+    needs: check-release
+    if: needs.check-release.outputs.should_release == 'true'
+    runs-on: windows-latest
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
       - name: Bump version and push tag
         id: tag_version
         uses: mathieudutour/github-tag-action@a22cf08638b34d5badda920f9daf6e72c477b07b # v6.2
@@ -44,19 +84,21 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           path: dist/WatchmanPairingAssistant.exe
-          name: executable
-      - name: Create a GitHub release
+          name: executable-win
+      - name: Create GitHub release with Windows executable
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: ${{ steps.tag_version.outputs.new_tag }}
           body: ${{ steps.tag_version.outputs.changelog }}
           artifacts: dist/WatchmanPairingAssistant.exe
+
+  # Build Linux AppImage and attach it to the release created by build-exe.
   build-lin:
     needs: build-exe
-    runs-on: [ ubuntu-latest ]
+    runs-on: ubuntu-latest
     env:
-        RELEASEVERSION: ${{ needs.build-exe.outputs.new_tag }}
+      RELEASEVERSION: ${{ needs.build-exe.outputs.new_tag }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
@@ -64,20 +106,48 @@ jobs:
           python-version: '3.10'
       - name: Sanitize version
         run: |
-             CLEAN=$(echo "$RELEASEVERSION" | grep -oE '^v?[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//')
-             echo "RELEASEVERSION=$CLEAN" >> "$GITHUB_ENV"
+          CLEAN=$(echo "$RELEASEVERSION" | grep -oE '^v?[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//')
+          echo "RELEASEVERSION=$CLEAN" >> "$GITHUB_ENV"
       - name: Install Task
         uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2
       - run: task dist-lin
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           path: source/dist/*.AppImage
-          name: executable
+          name: executable-lin
       - name: Attach AppImage to existing release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           tag: ${{ needs.build-exe.outputs.new_tag }}
           allowUpdates: true
+          omitBodyDuringUpdate: true
           artifacts: |
-                     source/dist/*.AppImage
-                     source/dist/*.zsync
+            source/dist/*.AppImage
+            source/dist/*.zsync
+
+  # Build artifacts on every push to main/linux for CI validation (no release created).
+  build-push-win:
+    if: github.event_name == 'push'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.10'
+      - name: Install Task
+        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2
+      - run: task dist-win
+
+  build-push-lin:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.10'
+      - name: Install Task
+        uses: arduino/setup-task@b91d5d2c96a56797b48ac1e0e89220bf64044611 # v2
+      - name: Set placeholder version for CI build
+        run: echo "RELEASEVERSION=0.0.0" >> "$GITHUB_ENV"
+      - run: task dist-lin
