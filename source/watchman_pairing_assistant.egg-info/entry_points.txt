@@ -1,0 +1,2 @@
+[console_scripts]
+watchman-pairing-assistant = main:main
