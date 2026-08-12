@@ -8,11 +8,16 @@ tasks:
     deps: [dist]
     cmds:
       - dist/WatchmanPairingAssistant.exe
-  dist:
+  dist-win:
     cmds:
       - pip install pyinstaller
       - pip install -r requirements.txt
       - pyinstaller --onefile --windowed --icon=resources/icon.ico --name WatchmanPairingAssistant source/main.py
+  dist-lin:
+    cmds:
+      - pip install cx_freeze
+      - pip install -r requirements.txt
+      - cd source; GITHUB_REPOSITORY_CLEAN=${GITHUB_REPOSITORY////|} python setup.py bdist_appimage
   clean:
     platforms:
       - windows

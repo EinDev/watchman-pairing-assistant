@@ -1,9 +1,10 @@
-name: "Build Executable (Windows)"
+name: "Build Executables"
 
 on:
   push:
     branches:
       - main
+      - linux
 
 permissions:
   contents: write
@@ -11,6 +12,8 @@ permissions:
 jobs:
   build-exe:
     runs-on: [ windows-latest ]
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
     steps:
       - uses: actions/checkout@v4
       - name: Bump version and push tag
@@ -23,7 +26,7 @@ jobs:
           python-version: '3.10'
       - name: Install Task
         uses: arduino/setup-task@v2
-      - run: task dist
+      - run: task dist-win
       - uses: actions/upload-artifact@v4
         with:
           path: dist/WatchmanPairingAssistant.exe
@@ -35,3 +38,32 @@ jobs:
           name: ${{ steps.tag_version.outputs.new_tag }}
           body: ${{ steps.tag_version.outputs.changelog }}
           artifacts: dist/WatchmanPairingAssistant.exe
+  build-lin:
+    needs: build-exe
+    runs-on: [ ubuntu-latest ]
+    env:
+        RELEASEVERSION: ${{ needs.build-exe.outputs.new_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Sanitize version
+        run: |
+             CLEAN=$(echo "$RELEASEVERSION" | grep -oE '^v?[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//')
+             echo "RELEASEVERSION=$CLEAN" >> "$GITHUB_ENV"
+      - name: Install Task
+        uses: arduino/setup-task@v2
+      - run: task dist-lin
+      - uses: actions/upload-artifact@v4
+        with:
+          path: source/dist/*.AppImage
+          name: executable
+      - name: Attach AppImage to existing release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ needs.build-exe.outputs.new_tag }}
+          allowUpdates: true
+          artifacts: |
+                     source/dist/*.AppImage
+                     source/dist/*.zsync
