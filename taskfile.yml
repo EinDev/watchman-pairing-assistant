@@ -12,6 +12,7 @@ tasks:
     cmds:
       - pip install pyinstaller
       - pip install -r requirements.txt
+      - pip install .
       - pyinstaller --onefile --windowed --icon=resources/icon.ico --copy-metadata watchman-pairing-assistant --name WatchmanPairingAssistant source/main.py
   dist-lin:
     cmds:
