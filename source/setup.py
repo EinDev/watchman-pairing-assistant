@@ -35,7 +35,7 @@ directory_table = [
 msi_data = {
     "Directory": directory_table,
     "ProgId": [
-        ("Prog.Id", "gitRelease", None, "Scale your avatar over OSC", "IconId", None),
+        ("Prog.Id", "gitRelease", None, "GUI for pairing SteamVR Tracking devices", "IconId", None),
     ],
     "Icon": [
         ("IconId", "../resources/icon.ico"),
