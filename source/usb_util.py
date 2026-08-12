@@ -155,17 +155,6 @@ def __convert_tree(to_convert) -> list[UsbTreeItem]:
 def find_hmd() -> Generator[ViveHMD, None, None]:
     for bus in usb.busses():
         bus: usb.legacy.Bus
-        # for dev in bus.devices:
-        #     dev: usb.legacy.Device
-        #     devices.append(UsbTreeItem(dev))
-        # print(" " + str(dev))
-        # print(" class: " + str(dev.deviceClass))
-        # print(f" address: {bus.location}." + str(dev.dev.address) + " - " + str(dev.dev.port_numbers))
-        # print()
-        # if dev.deviceClass == usb.CLASS_PER_INTERFACE and dev.idVendor == 0x28DE:
-        #     print(" " + str(util.get_string(dev.dev, dev.iProduct, 0x0409)))
-        #     print(" " + str(util.get_string(dev.dev, dev.iSerialNumber, 0x0409)))
-        # print(" " + util.get_string(dev.dev, 2, 0x0409))
 
         device_tree = __create_device_tree([device.dev for device in bus.devices])
         sorted_tree = __sort_device_tree(device_tree)
