@@ -55,7 +55,7 @@ class UsbTreeItem:
             return f"Device"
 
     @property
-    def children_flat_list(self) -> list['UsbTreeItem']:
+    def children_flat_list(self) -> Generator['UsbTreeItem', None, None]:
         for child in self.children.values():
             yield child
             if child.is_hub():
