@@ -153,6 +153,7 @@ class DeviceFrame(ctk.CTkFrame):
 class App(ctk.CTk):
     def __init__(self):#Frame and widget placement
         super().__init__()
+        self._config = None
 
         #Window settings
         ctk.set_default_color_theme("blue")
@@ -265,6 +266,9 @@ class App(ctk.CTk):
         return exe_path
 
     def load_config(self):  # Generating and getting json
+        if self._config is not None:
+            return self._config
+
         app_name = "watchman-pairing-assistant"
         config_dir = _user_config_dir(app_name)
         os.makedirs(config_dir, exist_ok=True)
@@ -294,6 +298,7 @@ class App(ctk.CTk):
             with open(config_path, "r") as config_file:
                 config = json.load(config_file)
 
+        self._config = config
         return config
 
 if __name__ == "__main__":
