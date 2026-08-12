@@ -8,9 +8,9 @@ version = "2.2.1"
 description = "GUI for pairing SteamVR Tracking devices using lighthouse_console"
 readme = "README.md"
 dependencies = [
-  "customtkinter",
-  "pyusb",
-  "libusb-package",
+  "customtkinter~=5.2.2",
+  "pyusb~=1.2.1",
+  "libusb-package~=1.0.26.2",
 ]
 license = "MIT"
 
