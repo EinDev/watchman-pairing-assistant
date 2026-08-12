@@ -29,6 +29,10 @@ jobs:
           python -m pip install pyinstaller
           python -m pip install -r requirements.txt
           pyinstaller --onefile --windowed --icon=resources/icon.ico --name WatchmanPairingAssistant source/main.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: dist/WatchmanPairingAssistant.exe
+          name: executable-win-pr
 
   # Check whether a new release should be created.
   # A release is skipped if the HEAD commit on main is already tagged.
