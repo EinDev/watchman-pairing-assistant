@@ -17,11 +17,10 @@ nix run github:TayouVR/watchman-pairing-assistant
 ```
 
 ### Other
-WIP - not packaged yet
+Download the latest version from [Releases](https://github.com/EinDev/watchman-pairing-assistant/releases) and follow the instructions.
 
 ## Windows
-Download the latest version from [Releases](releases) and execute it.
+Download the latest version from [Releases](https://github.com/EinDev/watchman-pairing-assistant/releases) and execute it.
 
 ![thumbnail](resources/booth1.png)
 ![thumbnail](resources/booth2.png)
-WIP
