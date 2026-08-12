@@ -5,12 +5,26 @@ on:
     branches:
       - main
       - linux
+  pull_request:
 
 permissions:
   contents: write
 
 jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install Task
+        uses: arduino/setup-task@v2
+      - run: task dist-win
+
   build-exe:
+    if: github.event_name == 'push'
     runs-on: [ windows-latest ]
     outputs:
       new_tag: ${{ steps.tag_version.outputs.new_tag }}
