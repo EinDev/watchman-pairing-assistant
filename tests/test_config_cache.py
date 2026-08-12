@@ -78,7 +78,7 @@ class ConfigCacheTests(unittest.TestCase):
         logs = []
         app = types.SimpleNamespace(insert_log=logs.append)
 
-        with mock.patch.object(self.main.subprocess, "run", side_effect=FileNotFoundError):
+        with mock.patch("main.subprocess.run", side_effect=FileNotFoundError):
             output = self.main.App.execute_subprocess(app, "serial", "C:/missing/lighthouse_console.exe")
 
         self.assertEqual(output, "")
@@ -88,7 +88,7 @@ class ConfigCacheTests(unittest.TestCase):
         logs = []
         app = types.SimpleNamespace(insert_log=logs.append)
 
-        with mock.patch.object(self.main.subprocess, "Popen", side_effect=FileNotFoundError):
+        with mock.patch("main.subprocess.Popen", side_effect=FileNotFoundError):
             self.main.App.execute_subprocess_serial(app, "abc", "pair", "C:/missing/lighthouse_console.exe")
 
         self.assertEqual(logs, ["Could not find lighthouse_console executable: C:/missing/lighthouse_console.exe"])

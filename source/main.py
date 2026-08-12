@@ -196,7 +196,6 @@ class App(ctk.CTk):
         except FileNotFoundError:
             self.insert_log(f"Could not find lighthouse_console executable: {exe_path}")
             return ""
-        ##print("Completed Process:", completed_process)
 
     def execute_subprocess_serial(self, serial, command, exe_path, timeout=5):#Function to execute multiple commands in an external exe file
         try:
