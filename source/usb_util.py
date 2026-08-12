@@ -17,21 +17,21 @@ class UsbTreeItem:
         try:
             if device.product is not None:
                 self.product = device.product
-        except:
+        except usb.core.USBError:
             pass
 
         self.vendor = ""
         try:
             if device.manufacturer is not None:
                 self.vendor = device.manufacturer
-        except:
+        except usb.core.USBError:
             pass
 
         self.serial = "No Serial Number"
         try:
             if device.serial_number is not None:
                 self.serial = device.serial_number
-        except:
+        except usb.core.USBError:
             pass
 
         self.ports = device.port_numbers
