@@ -7,9 +7,14 @@ import json
 import os
 import sys
 
+from importlib.metadata import version, PackageNotFoundError
+
 import usb_util
 
-VERSION = "2.2.1"
+try:
+    VERSION = version("watchman-pairing-assistant")
+except PackageNotFoundError:
+    VERSION = "unknown"
 
 def _user_config_dir(app_name: str) -> str:
     # Cross-platform user config dir
