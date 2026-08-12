@@ -11,3 +11,4 @@ jobs:
       - uses: otto-de/assign_issue_toCopilot_action@a03c632341e7921e04a90e9b1bd68aae82251bfb # main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ github.event.issue.number }}
