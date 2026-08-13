@@ -12,7 +12,8 @@ tasks:
     cmds:
       - pip install pyinstaller
       - pip install -r requirements.txt
-      - pyinstaller --onefile --windowed --icon=resources/icon.ico --name WatchmanPairingAssistant source/main.py
+      - pip install .
+      - pyinstaller --onefile --windowed --icon=resources/icon.ico --copy-metadata watchman-pairing-assistant --name WatchmanPairingAssistant source/main.py
   dist-lin:
     cmds:
       - pip install cx_freeze

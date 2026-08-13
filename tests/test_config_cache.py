@@ -74,6 +74,25 @@ class ConfigCacheTests(unittest.TestCase):
             self.assertIs(first, second)
             self.assertEqual(second["theme"], "Dark")
 
+    def test_execute_subprocess_handles_missing_executable(self):
+        logs = []
+        app = types.SimpleNamespace(insert_log=logs.append)
+
+        with mock.patch("main.subprocess.run", side_effect=FileNotFoundError):
+            output = self.main.App.execute_subprocess(app, "serial", "C:/missing/lighthouse_console.exe")
+
+        self.assertEqual(output, "")
+        self.assertEqual(logs, ["Could not find lighthouse_console executable: C:/missing/lighthouse_console.exe"])
+
+    def test_execute_subprocess_serial_handles_missing_executable(self):
+        logs = []
+        app = types.SimpleNamespace(insert_log=logs.append)
+
+        with mock.patch("main.subprocess.Popen", side_effect=FileNotFoundError):
+            self.main.App.execute_subprocess_serial(app, "abc", "pair", "C:/missing/lighthouse_console.exe")
+
+        self.assertEqual(logs, ["Could not find lighthouse_console executable: C:/missing/lighthouse_console.exe"])
+
 
 if __name__ == "__main__":
     unittest.main()

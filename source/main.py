@@ -190,12 +190,19 @@ class App(ctk.CTk):
         print(current_time + log)
 
     def execute_subprocess(self, command, exe_path):#Function to execute an external exe file and get output
-        completed_process = subprocess.run([exe_path, command], capture_output=True, text=True)
-        return completed_process.stdout
-        ##print("Completed Process:", completed_process)
+        try:
+            completed_process = subprocess.run([exe_path, command], capture_output=True, text=True)
+            return completed_process.stdout
+        except FileNotFoundError:
+            self.insert_log(f"Could not find lighthouse_console executable: {exe_path}")
+            return ""
 
     def execute_subprocess_serial(self, serial, command, exe_path, timeout=5):#Function to execute multiple commands in an external exe file
-        process = subprocess.Popen([exe_path], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        try:
+            process = subprocess.Popen([exe_path], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        except FileNotFoundError:
+            self.insert_log(f"Could not find lighthouse_console executable: {exe_path}")
+            return
         try:
             process.stdin.write(f"serial {serial}\n")
             process.stdin.flush()
