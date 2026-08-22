@@ -312,8 +312,9 @@ class App(ctk.CTk):
         partial_lh_console_bin_path = os.path.join("steamapps", "common", "SteamVR", "tools", "lighthouse", "bin")
 
         if sys.platform == 'win32':
+            program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
             default_lh_console_path = os.path.join(
-                "C:", "Program Files (x86)", "Steam", partial_lh_console_bin_path, "win64", "lighthouse_console.exe")
+                program_files_x86, "Steam", partial_lh_console_bin_path, "win64", "lighthouse_console.exe")
         else:
             default_lh_console_path = os.path.join(
                 os.path.expanduser('~'), ".steam", "steam", partial_lh_console_bin_path, "linux64", "lighthouse_console")
@@ -330,6 +331,15 @@ class App(ctk.CTk):
         if os.path.exists(config_path):
             with open(config_path, "r") as config_file:
                 config = json.load(config_file)
+
+        if sys.platform == 'win32':
+            import ntpath
+            lh_path = config.get("lighthouse_console_path", "")
+            drive, rest = ntpath.splitdrive(lh_path)
+            if drive and rest and not rest.startswith(("\\", "/")):
+                config["lighthouse_console_path"] = drive + "\\" + rest
+                with open(config_path, "w") as config_file:
+                    json.dump(config, config_file)
 
         self._config = config
         return config

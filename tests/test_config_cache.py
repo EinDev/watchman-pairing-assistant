@@ -93,6 +93,45 @@ class ConfigCacheTests(unittest.TestCase):
 
         self.assertEqual(logs, ["Could not find lighthouse_console executable: C:/missing/lighthouse_console.exe"])
 
+    def test_windows_default_lh_console_path_is_absolute(self):
+        import ntpath
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env = {
+                "APPDATA": temp_dir,
+                "ProgramFiles(x86)": r"C:\Program Files (x86)",
+            }
+            with mock.patch.dict(os.environ, env, clear=False):
+                with mock.patch.object(self.main.sys, "platform", "win32"):
+                    config = self.main.App.load_config(self.app)
+
+        lh_path = config["lighthouse_console_path"]
+        self.assertTrue(
+            ntpath.isabs(lh_path),
+            f"Expected absolute Windows path but got: {lh_path!r}",
+        )
+
+    def test_windows_migration_fixes_drive_relative_path(self):
+        import ntpath
+        broken_path = r"C:Program Files (x86)\Steam\steamapps\common\SteamVR\tools\lighthouse\bin\win64\lighthouse_console.exe"
+        fixed_path = r"C:\Program Files (x86)\Steam\steamapps\common\SteamVR\tools\lighthouse\bin\win64\lighthouse_console.exe"
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_dir = Path(temp_dir) / "watchman-pairing-assistant"
+            config_dir.mkdir()
+            config_path = config_dir / "config.json"
+            config_path.write_text(json.dumps({
+                "theme": "Dark",
+                "lighthouse_console_path": broken_path,
+            }))
+
+            env = {"APPDATA": temp_dir}
+            with mock.patch.dict(os.environ, env, clear=False):
+                with mock.patch.object(self.main.sys, "platform", "win32"):
+                    config = self.main.App.load_config(self.app)
+
+        self.assertEqual(config["lighthouse_console_path"], fixed_path)
+        self.assertTrue(ntpath.isabs(config["lighthouse_console_path"]))
+
 
 if __name__ == "__main__":
     unittest.main()
