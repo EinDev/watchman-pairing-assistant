@@ -12,6 +12,7 @@ from importlib.metadata import version, PackageNotFoundError
 from PIL import Image
 
 import usb_util
+import dongle_watcher
 
 _DEVICE_ICONS = {}  # category ("hmd"/"controller") -> cached ctk.CTkImage, loaded lazily on first use
 
@@ -70,6 +71,7 @@ class SidebarFrame(ctk.CTkFrame):
 
         app_instance.refresh_hmds()
         app_instance.scrollable_frame.update_device_frames(device_serials,app_instance)
+        app_instance.refresh_dongle_watchers()
         threading.Thread(target=app_instance.check_status).start()
 
         app_instance.insert_log("Reloaded devices")
@@ -135,6 +137,13 @@ class DeviceFrame(ctk.CTkFrame):
         #self.device_label_name.grid(row=0, column=2, padx=20, pady=20)
         self.device_label_name.place(x=220,y=20)
 
+        self.device_category = device_category
+        # Live connect/disconnect status from the HID watcher. Shown on every row -
+        # even an "hmd"-category dongle (e.g. an Index's built-in radio) can host a
+        # live wireless controller/tracker pairing, not just represent the headset itself.
+        self.device_label_live_status = ctk.CTkLabel(self, text="", font=("Arial", 10), text_color=("#888888", "#aaaaaa"))
+        self.device_label_live_status.place(x=220, y=42)
+
         self.device_button_pair = ctk.CTkButton(self,state="disabled",text="Checking...", font=("Arial Bold", 12),width=100,command=lambda: self.device_button_callback("pair",serial))
         self.device_button_pair.grid(row=0, column=4, padx=(70, 10), pady=20)
         self.device_button_unpair = ctk.CTkButton(self,text="Unpair", font=("Arial Bold", 12),width=100,command=lambda: self.device_button_callback("unpair",serial))
@@ -159,6 +168,18 @@ class DeviceFrame(ctk.CTkFrame):
 
         self.app_instance.insert_log("Executed command : " + serial +" "+ command)
 
+    def update_live_pairing(self, connected, paired_serial, battery, device_class):#Update the live connect/disconnect status line from the HID watcher
+        if not self.winfo_exists():
+            return
+        if connected:
+            label = device_class or "device"
+            text = f"Live: {label} {paired_serial}" if paired_serial else f"Live: {label} connected"
+            if battery is not None:
+                text += f" ({battery}%)"
+        else:
+            text = ""
+        self.device_label_live_status.configure(text=text)
+
     def change_button_status(self, status):#Change the status of a button on the device frame
         if self.winfo_exists():
             if status == "normal":
@@ -173,6 +194,7 @@ class App(ctk.CTk):
         super().__init__()
         self._config = None
         self._hmds = []
+        self._dongle_watchers = {}  # dongle serial -> DongleWatcher, for "controller"-category dongles only
 
         #Window settings
         ctk.set_default_color_theme("blue")
@@ -184,6 +206,8 @@ class App(ctk.CTk):
         config = self.load_config()
         ctk.set_appearance_mode(config.get("theme"))
         
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
+
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
@@ -292,6 +316,43 @@ class App(ctk.CTk):
             return "Tundra", "controller"
         else:   #Other dongles that are not identifiable (vive HMD or general nrf24 dongles)
             return "Dongle", "controller"
+
+    def refresh_dongle_watchers(self):#Restart the live HID watchers to match the current device rows
+        for watcher in self._dongle_watchers.values():
+            watcher.stop()
+        self._dongle_watchers = {}
+
+        # Every entry here is a real RF dongle (the wired HMD receiver itself is
+        # filtered out upstream in extract_device_serials), and any of them can
+        # host a live wireless controller/tracker pairing - including an "hmd"-
+        # category dongle like an Index's built-in radio, so we watch them all.
+        exe_path = self.get_exe_path()
+        for device_frame in self.scrollable_frame.device_frames:
+            serial = device_frame.device_label_serial.cget("text")
+            watcher = dongle_watcher.DongleWatcher(serial, exe_path, self.on_dongle_state_change)
+            self._dongle_watchers[serial] = watcher
+            watcher.start()
+
+    def on_dongle_state_change(self, dongle_serial, connected, paired_serial, battery, device_class):#Called from a watcher thread - marshal to the main thread before touching widgets
+        self.after(0, lambda: self._apply_dongle_state_change(dongle_serial, connected, paired_serial, battery, device_class))
+
+    def _apply_dongle_state_change(self, dongle_serial, connected, paired_serial, battery, device_class):
+        for device_frame in self.scrollable_frame.device_frames:
+            if device_frame.device_label_serial.cget("text") == dongle_serial:
+                device_frame.update_live_pairing(connected, paired_serial, battery, device_class)
+                break
+        if connected:
+            detail = f" {device_class}" if device_class else ""
+            detail += f" {paired_serial}" if paired_serial else ""
+            detail += f" ({battery}%)" if battery is not None else ""
+            self.insert_log(f"{dongle_serial}: live-detected connected device{detail}")
+        else:
+            self.insert_log(f"{dongle_serial}: live-detected disconnect")
+
+    def _on_close(self):#Stop background HID watcher threads before exiting
+        for watcher in self._dongle_watchers.values():
+            watcher.stop()
+        self.destroy()
 
     def get_exe_path(self):#Get exe path
         config = self.load_config()

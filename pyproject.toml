@@ -12,6 +12,7 @@ dependencies = [
   "libusb-package>=1.0.26.2,<1.0.31.0",
   "pyusb>=1.2.1,<1.4.0",
   "pillow>=10.0.0,<11.0.0",
+  "hidapi>=0.14.0,<1.0.0",
 ]
 license = "MIT"
 
@@ -20,7 +21,7 @@ watchman-pairing-assistant = "main:main"
 
 [tool.setuptools]
 package-dir = { "" = "source" }
-py-modules = ["main", "usb_util"]
+py-modules = ["main", "usb_util", "dongle_watcher"]
 
 [tool.setuptools.data-files]
 "share/applications" = ["resources/watchman-pairing-assistant.desktop"]
