@@ -56,6 +56,7 @@ class SidebarFrame(ctk.CTkFrame):
         if device_serials:
             app_instance.insert_log("Recognized devices : " + ", ".join(device_serials))
 
+        app_instance.refresh_hmds()
         app_instance.scrollable_frame.update_device_frames(device_serials,app_instance)
         threading.Thread(target=app_instance.check_status).start()
 
@@ -154,6 +155,7 @@ class App(ctk.CTk):
     def __init__(self):#Frame and widget placement
         super().__init__()
         self._config = None
+        self._hmds = []
 
         #Window settings
         ctk.set_default_color_theme("blue")
@@ -244,17 +246,24 @@ class App(ctk.CTk):
         #Extract columns prefixed with a tab, excluding rows prefixed with "LHR-"
         return lines
     
-    def get_device_name(self, serial_number):#Function to determine device name from serial
+    def refresh_hmds(self):#Scan the USB bus once per reload and cache the resulting HMD list
         try:
-            hmds = list(usb_util.find_hmd())
-            for hmd in hmds:
-                dongle_serials = hmd.get_dongle_serials()
-                if serial_number in dongle_serials:
-                    self.insert_log(f"Detected {serial_number} as dongle of headset {hmd.get_display_name()}")
-                    return hmd.get_display_name()
-            self.insert_log(f"Detected {serial_number} as dongle")
+            self._hmds = list(usb_util.find_hmd())
         except Exception as e:
-            self.insert_log(str(e))
+            # A genuinely unexpected failure (e.g. no libusb backend
+            # available at all). Individual unreadable/busy USB devices are
+            # already handled gracefully inside usb_util, so this should be
+            # rare - log it once per reload instead of once per device.
+            self.insert_log(f"Could not scan USB devices: {e}")
+            self._hmds = []
+
+    def get_device_name(self, serial_number):#Function to determine device name from serial
+        for hmd in self._hmds:
+            dongle_serials = hmd.get_dongle_serials()
+            if serial_number in dongle_serials:
+                self.insert_log(f"Detected {serial_number} as dongle of headset {hmd.get_display_name()}")
+                return hmd.get_display_name()
+        self.insert_log(f"Detected {serial_number} as dongle")
         if serial_number.endswith(("LYM", "RYB")):  #Dongle with built-in IndexHMD, which may have "LYM" or "RYB" at the end of the serial number
             return "IndexHMD"
         elif serial_number.endswith(("LYX")):   #Dongles made with Index firmware when the serial number ends with "LYX"
