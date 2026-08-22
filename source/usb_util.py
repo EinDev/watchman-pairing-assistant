@@ -10,31 +10,61 @@ class UsbTreeItem:
             num: UsbTreeItem(data["device"], data["children"], self, level + 1) for num, data in children.items()
         }
         self.parent = parent
-        self.address = device.address
-        self.bus = device.bus
-        self.port = device.port_number
+        self.address = None
+        self.bus = None
+        self.port = None
+        try:
+            self.address = device.address
+            self.bus = device.bus
+            self.port = device.port_number
+        except usb.core.USBError:
+            pass
+
+        # NOTE: Reading product/manufacturer/serial_number requires pyusb to
+        # open a device handle and issue a control transfer, which can fail
+        # in several different ways for a device we're not meant to query
+        # (e.g. it's a non-Vive device on the system, is already opened
+        # exclusively by another process, or isn't bound to a
+        # libusb-compatible driver on Windows):
+        #   - usb.core.USBError: the transfer itself failed (e.g. errno 5
+        #     "Input/Output Error" when the device is busy/inaccessible).
+        #   - ValueError: Device.langids swallows a USBError internally and
+        #     returns an empty tuple, which usb.util.get_string() then turns
+        #     into "The device has no langid".
+        #   - NotImplementedError: pyusb's libusb1 backend raises this when
+        #     libusb_open() returns LIBUSB_ERROR_NOT_SUPPORTED, which is
+        #     common on Windows for devices not bound to WinUSB/libusbK.
+        # All three represent the same "can't be queried" condition and are
+        # handled identically: fall back to the default below.
+        STRING_DESCRIPTOR_ERRORS = (usb.core.USBError, ValueError, NotImplementedError)
+
         self.product = ""
         try:
             if device.product is not None:
                 self.product = device.product
-        except usb.core.USBError:
+        except STRING_DESCRIPTOR_ERRORS:
             pass
 
         self.vendor = ""
         try:
             if device.manufacturer is not None:
                 self.vendor = device.manufacturer
-        except usb.core.USBError:
+        except STRING_DESCRIPTOR_ERRORS:
             pass
 
         self.serial = "No Serial Number"
         try:
             if device.serial_number is not None:
                 self.serial = device.serial_number
+        except STRING_DESCRIPTOR_ERRORS:
+            pass
+
+        self.ports = None
+        try:
+            self.ports = device.port_numbers
         except usb.core.USBError:
             pass
 
-        self.ports = device.port_numbers
         self.device = device
         self.class_pretty = self.pp_class()
 
@@ -119,9 +149,16 @@ def __create_device_tree(devices: list[usb.core.Device]) -> dict:
     root = {}
     for device in devices:
         current_node = root
-        ports = device.port_numbers
+        try:
+            ports = device.port_numbers
+            port_number = device.port_number
+        except usb.core.USBError:
+            # Device topology couldn't be queried (e.g. the device vanished
+            # mid-enumeration, or another process is holding it exclusively).
+            # Skip it rather than letting the error propagate out of the scan.
+            continue
         if ports is None:
-            last_port = device.port_number
+            last_port = port_number
         else:
             for port in ports[:-1]:  # Iterate through all but the last port
                 if int(port) not in current_node:
@@ -153,10 +190,28 @@ def __convert_tree(to_convert) -> list[UsbTreeItem]:
 
 
 def find_hmd() -> Generator[ViveHMD, None, None]:
-    for bus in usb.busses():
-        bus: usb.legacy.Bus
+    # NOTE: We deliberately use the modern usb.core.find() API here instead of
+    # the deprecated usb.busses()/usb.legacy API. The legacy API eagerly builds
+    # a full Configuration/Interface/Endpoint descriptor tree for *every* USB
+    # device on the system (not just Vive hardware) as soon as it is iterated,
+    # which issues a real USB control transfer per device. On Windows, any
+    # unrelated device without a libusb-compatible driver bound (e.g. a
+    # keyboard/mouse still using the stock HID driver) can fail that transfer
+    # with usb.core.USBError: [Errno 5] Input/Output Error, which used to
+    # abort the whole scan. usb.core.find(find_all=True) only reads the
+    # (cached) device descriptor and does not walk configurations, so it does
+    # not trigger this failure mode for attributes we actually use here
+    # (idVendor/idProduct/bDeviceClass/bus/address/port numbers/strings).
+    devices_by_bus: dict[int, list[usb.core.Device]] = {}
+    for device in usb.core.find(find_all=True):
+        try:
+            bus_number = device.bus
+        except usb.core.USBError:
+            continue
+        devices_by_bus.setdefault(bus_number, []).append(device)
 
-        device_tree = __create_device_tree([device.dev for device in bus.devices])
+    for bus_devices in devices_by_bus.values():
+        device_tree = __create_device_tree(bus_devices)
         sorted_tree = __sort_device_tree(device_tree)
         converted = list(__convert_tree(sorted_tree))
         for dev in converted:
