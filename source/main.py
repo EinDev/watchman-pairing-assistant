@@ -9,7 +9,19 @@ import sys
 
 from importlib.metadata import version, PackageNotFoundError
 
+from PIL import Image
+
 import usb_util
+
+_DEVICE_ICONS = {}  # category ("hmd"/"controller") -> cached ctk.CTkImage, loaded lazily on first use
+
+def _get_device_icon(category):#Lazily load and cache the small icon used to mark a device row as HMD vs controller
+    if category not in _DEVICE_ICONS:
+        base_name = "icon_hmd" if category == "hmd" else "icon_controller"
+        light_image = Image.open(os.path.join("resources", f"{base_name}_light.png"))
+        dark_image = Image.open(os.path.join("resources", f"{base_name}_dark.png"))
+        _DEVICE_ICONS[category] = ctk.CTkImage(light_image=light_image, dark_image=dark_image, size=(20, 20))
+    return _DEVICE_ICONS[category]
 
 try:
     VERSION = version("watchman-pairing-assistant")
@@ -114,7 +126,12 @@ class DeviceFrame(ctk.CTkFrame):
         self.device_label_serial = ctk.CTkLabel(self, text=serial, font=("Arial Bold", 12),text_color=("#696969", "#DCE4EE"))  # Display serial here
         self.device_label_serial.grid(row=0, column=1, padx=(5, 20), pady=20)
 
-        self.device_label_name = ctk.CTkLabel(self, text=self.app_instance.get_device_name(serial), font=("Arial Bold", 12),text_color=("#696969", "#DCE4EE")) # Display device name here
+        device_name, device_category = self.app_instance.get_device_info(serial)
+
+        self.device_label_icon = ctk.CTkLabel(self, image=_get_device_icon(device_category), text="")  # Small HMD/controller glyph
+        self.device_label_icon.place(x=195, y=20)
+
+        self.device_label_name = ctk.CTkLabel(self, text=device_name, font=("Arial Bold", 12),text_color=("#696969", "#DCE4EE")) # Display device name here
         #self.device_label_name.grid(row=0, column=2, padx=20, pady=20)
         self.device_label_name.place(x=220,y=20)
 
@@ -257,24 +274,24 @@ class App(ctk.CTk):
             self.insert_log(f"Could not scan USB devices: {e}")
             self._hmds = []
 
-    def get_device_name(self, serial_number):#Function to determine device name from serial
+    def get_device_info(self, serial_number):#Function to determine device name and category ("hmd" or "controller") from serial
         for hmd in self._hmds:
             dongle_serials = hmd.get_dongle_serials()
             if serial_number in dongle_serials:
                 self.insert_log(f"Detected {serial_number} as dongle of headset {hmd.get_display_name()}")
-                return hmd.get_display_name()
+                return hmd.get_display_name(), "hmd"
         self.insert_log(f"Detected {serial_number} as dongle")
         if serial_number.endswith(("LYM", "RYB")):  #Dongle with built-in IndexHMD, which may have "LYM" or "RYB" at the end of the serial number
-            return "IndexHMD"
+            return "IndexHMD", "hmd"
         elif serial_number.endswith(("LYX")):   #Dongles made with Index firmware when the serial number ends with "LYX"
-            return "IndexFW"
+            return "IndexFW", "controller"
         elif serial_number.endswith(("DYX")):   #If the serial ends with DYX, it is dongles made with nrf52840 (etee, Shiftall, etc.)
-            return "IndexFW"
-        elif re.match(r".*(-[0-9]YX)$", serial_number): 
+            return "IndexFW", "controller"
+        elif re.match(r".*(-[0-9]YX)$", serial_number):
             #If the last part of the serial number begins with a "-" followed by a single digit and ends with "YX", it is a Tundra labs Super Wireless Dongle
-            return "Tundra"
+            return "Tundra", "controller"
         else:   #Other dongles that are not identifiable (vive HMD or general nrf24 dongles)
-            return "Dongle"
+            return "Dongle", "controller"
 
     def get_exe_path(self):#Get exe path
         config = self.load_config()
